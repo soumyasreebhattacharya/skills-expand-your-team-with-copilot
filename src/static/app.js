@@ -472,6 +472,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Escape HTML special characters for use in attribute values
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
   // Function to render a single activity card
   function renderActivityCard(name, details) {
     const activityCard = document.createElement("div");
@@ -568,6 +578,13 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <div class="share-buttons">
+          <span class="share-label">Share:</span>
+          <button class="share-btn share-twitter" data-activity="${escapeHtml(name)}" data-description="${escapeHtml(details.description)}" title="Share on Twitter/X" aria-label="Share on Twitter/X">𝕏</button>
+          <button class="share-btn share-facebook" data-activity="${escapeHtml(name)}" data-description="${escapeHtml(details.description)}" title="Share on Facebook" aria-label="Share on Facebook">f</button>
+          <button class="share-btn share-whatsapp" data-activity="${escapeHtml(name)}" data-description="${escapeHtml(details.description)}" title="Share on WhatsApp" aria-label="Share on WhatsApp">💬</button>
+          <button class="share-btn share-copy" data-activity="${escapeHtml(name)}" data-description="${escapeHtml(details.description)}" title="Copy link" aria-label="Copy link">🔗</button>
+        </div>
       </div>
     `;
 
@@ -587,7 +604,74 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // Add click handlers for share buttons
+    activityCard.querySelectorAll(".share-btn").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const activityName = event.currentTarget.dataset.activity;
+        const description = event.currentTarget.dataset.description;
+        const platform = event.currentTarget.classList.contains("share-twitter")
+          ? "twitter"
+          : event.currentTarget.classList.contains("share-facebook")
+          ? "facebook"
+          : event.currentTarget.classList.contains("share-whatsapp")
+          ? "whatsapp"
+          : "copy";
+        shareActivity(activityName, description, platform, event.currentTarget);
+      });
+    });
+
     activitiesList.appendChild(activityCard);
+  }
+
+  // Share an activity on social media or copy link
+  function shareActivity(activityName, description, platform, buttonElement) {
+    const pageUrl = window.location.href.split("?")[0];
+    const shareText = `Check out "${activityName}" at Mergington High School! ${description}`;
+
+    if (platform === "twitter") {
+      const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(pageUrl)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else if (platform === "facebook") {
+      const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}&quote=${encodeURIComponent(shareText)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else if (platform === "whatsapp") {
+      const url = `https://wa.me/?text=${encodeURIComponent(shareText + " " + pageUrl)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else if (platform === "copy") {
+      const text = shareText + " " + pageUrl;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          const original = buttonElement.textContent;
+          buttonElement.textContent = "✓";
+          setTimeout(() => {
+            buttonElement.textContent = original;
+          }, 1500);
+        }).catch(() => {
+          showMessage("Could not copy to clipboard.", "error");
+        });
+      } else {
+        // Fallback for non-HTTPS or unsupported browsers
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+          document.execCommand("copy");
+          const original = buttonElement.textContent;
+          buttonElement.textContent = "✓";
+          setTimeout(() => {
+            buttonElement.textContent = original;
+          }, 1500);
+        } catch {
+          showMessage("Could not copy to clipboard.", "error");
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
+    }
   }
 
   // Event listeners for search and filter
